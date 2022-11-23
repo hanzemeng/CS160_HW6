@@ -5,19 +5,67 @@
 // all functions must have code, many may be left empty.
 
 void CodeGenerator::visitProgramNode(ProgramNode* node) {
-    // WRITEME: Replace with code if necessary
+    std::cout << ".globl Main_main" << std::endl;
+    std::cout << std::endl;
+
+    std::cout << ".data" << std::endl;
+    std::cout << "printstr: .asciz \"%d\\n\"" << std::endl;
+    std::cout << std::endl;
+
+    std::cout << ".text" << std::endl;
+    node->visit_children(this);
 }
 
 void CodeGenerator::visitClassNode(ClassNode* node) {
-    // WRITEME: Replace with code if necessary
+    /*
+    std::cout << "push %ebp" << std::endl;
+    std::cout << "mov %esp, %ebp" << std::endl;
+
+    int memberAllocateSize = 0;
+    currentClassName = node->identifier_1->name;
+    while("" != currentClassName)
+    {
+        memberAllocateSize += (*classTable)[currentClassName].membersSize;
+        currentClassName = (*classTable)[currentClassName].superClassName;
+    }
+    
+    std::cout << "sub $" << memberAllocateSize << ", %esp" << std::endl;
+    */
+    currentClassName = node->identifier_1->name;
+    if (node->method_list) {
+        for(std::list<MethodNode*>::iterator iter = node->method_list->begin(); iter != node->method_list->end(); iter++) {
+        (*iter)->accept(this);
+        }
+    }
+    /*
+    std::cout << "mov %ebp, %esp" << std::endl;
+    std::cout << "pop %ebp" << std::endl;
+    */
 }
 
 void CodeGenerator::visitMethodNode(MethodNode* node) {
-    // WRITEME: Replace with code if necessary
+    currentMethodName = node->identifier->name;
+    std::cout << currentClassName << "_" << currentMethodName << ":" << std::endl;
+    std::cout << "push %ebp" << std::endl;
+    std::cout << "mov %esp, %ebp" << std::endl;
+    std::cout << "sub $" << (*(*classTable)[currentClassName].methods)[currentMethodName].localsSize << ", %esp" << std::endl;
+
+    node->methodbody->accept(this);
+
+    std::cout << "mov %ebp, %esp" << std::endl;
+    std::cout << "pop %ebp" << std::endl;
+    std::cout << "ret" << std::endl;
 }
 
 void CodeGenerator::visitMethodBodyNode(MethodBodyNode* node) {
-    // WRITEME: Replace with code if necessary
+    if (node->statement_list) {
+        for(std::list<StatementNode*>::iterator iter = node->statement_list->begin(); iter != node->statement_list->end(); iter++) {
+        (*iter)->accept(this);
+        }
+    }
+    if (node->returnstatement) {
+        node->returnstatement->accept(this);
+    }
 }
 
 void CodeGenerator::visitParameterNode(ParameterNode* node) {
@@ -29,103 +77,505 @@ void CodeGenerator::visitDeclarationNode(DeclarationNode* node) {
 }
 
 void CodeGenerator::visitReturnStatementNode(ReturnStatementNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression->accept(this);
 }
 
 void CodeGenerator::visitAssignmentNode(AssignmentNode* node) {
-    // WRITEME: Replace with code if necessary
+    VariableInfo assignedVar;
+    node->expression->accept(this);
+    if(NULL == node->identifier_2)
+    {
+        if((*(*(*classTable)[currentClassName].methods)[currentMethodName].variables).end() == 
+        (*(*(*classTable)[currentClassName].methods)[currentMethodName].variables).find(node->identifier_1->name))
+        {
+            int varOffset = 0;
+            std::string searchClassName = currentClassName;
+            while("" != searchClassName)
+            {
+                if((*(*classTable)[searchClassName].members).end() == (*(*classTable)[searchClassName].members).find(node->identifier_1->name))
+                {
+                    varOffset += (*classTable)[searchClassName].membersSize;
+                    searchClassName = (*classTable)[searchClassName].superClassName;
+                }
+                else
+                {
+                    assignedVar = (*(*classTable)[searchClassName].members)[node->identifier_1->name];
+                    varOffset += assignedVar.offset;
+                    std::cout << "mov 8(%ebp), %ebx" << std::endl;
+                    std::cout << "mov %eax, " << varOffset << "(%ebx)" << std::endl;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            assignedVar = (*(*(*classTable)[currentClassName].methods)[currentMethodName].variables)[node->identifier_1->name];
+            std::cout << "mov %eax, " << assignedVar.offset << "(%ebp)" << std::endl;
+        }
+    }
+    else
+    {
+        VariableInfo firstVar;
+        if((*(*(*classTable)[currentClassName].methods)[currentMethodName].variables).end() == 
+        (*(*(*classTable)[currentClassName].methods)[currentMethodName].variables).find(node->identifier_1->name))
+        {
+            int firstVarOffset = 0;
+            std::string searchClassName = currentClassName;
+            while("" != searchClassName)
+            {
+                if((*(*classTable)[searchClassName].members).end() == (*(*classTable)[searchClassName].members).find(node->identifier_1->name))
+                {
+                    firstVarOffset += (*classTable)[searchClassName].membersSize;
+                    searchClassName = (*classTable)[searchClassName].superClassName;
+                }
+                else
+                {
+                    firstVar = (*(*classTable)[searchClassName].members)[node->identifier_1->name];
+                    firstVarOffset += firstVar.offset;
+                    std::cout << "mov 8(%ebp), %ebx" << std::endl;
+                    std::cout << "mov " << firstVarOffset << "(%ebx), %ebx" << std::endl;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            firstVar = (*(*(*classTable)[currentClassName].methods)[currentMethodName].variables)[node->identifier_1->name];
+            std::cout << "mov " << firstVar.offset << "(%ebp), %ebx" << std::endl;
+        }
+
+        int secondVarOffset = 0;
+        std::string searchClassName = firstVar.type.objectClassName;
+        while("" != searchClassName)
+        {
+            if((*(*classTable)[searchClassName].members).end() == (*(*classTable)[searchClassName].members).find(node->identifier_2->name))
+            {
+                secondVarOffset += (*classTable)[searchClassName].membersSize;
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+            else
+            {
+                assignedVar = (*(*classTable)[searchClassName].members)[node->identifier_2->name];
+                secondVarOffset += assignedVar.offset;
+                break;
+            }
+        }
+        std::cout << "mov %eax, " << secondVarOffset << "(%ebx)" << std::endl;
+    }
 }
 
 void CodeGenerator::visitCallNode(CallNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->methodcall->accept(this);
 }
 
 void CodeGenerator::visitIfElseNode(IfElseNode* node) {
-    // WRITEME: Replace with code if necessary
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    node->expression->accept(this);
+    std::cout << "mov $0, %edx" << std::endl;
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "je " << "L" << firstLabel << std::endl;
+
+    if (node->statement_list_1) {
+        for(std::list<StatementNode*>::iterator iter = node->statement_list_1->begin(); iter != node->statement_list_1->end(); iter++) {
+        (*iter)->accept(this);
+        }
+    }
+    std::cout << "jmp " << "L" << secondLabel << std::endl;
+
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    if (node->statement_list_2) {
+        for(std::list<StatementNode*>::iterator iter = node->statement_list_2->begin(); iter != node->statement_list_2->end(); iter++) {
+        (*iter)->accept(this);
+        }
+    }
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitWhileNode(WhileNode* node) {
-    // WRITEME: Replace with code if necessary
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    node->expression->accept(this);
+    std::cout << "mov $0, %edx" << std::endl;
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "je " << "L" << secondLabel << std::endl;
+
+    if (node->statement_list) {
+        for(std::list<StatementNode*>::iterator iter = node->statement_list->begin(); iter != node->statement_list->end(); iter++) {
+        (*iter)->accept(this);
+        }
+    }
+
+    std::cout << "jmp " << "L" << firstLabel << std::endl;
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitPrintNode(PrintNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression->accept(this);
+    std::cout << "push %eax" << std::endl;
+    std::cout << "push $printstr" << std::endl;
+    std::cout << "call printf" << std::endl;
+    std::cout << "add $8, %esp" << std::endl;
 }
 
 void CodeGenerator::visitDoWhileNode(DoWhileNode* node) {
-    // WRITEME: Replace with code if necessary
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    if (node->statement_list) {
+        for(std::list<StatementNode*>::iterator iter = node->statement_list->begin(); iter != node->statement_list->end(); iter++) {
+        (*iter)->accept(this);
+        }
+    }
+
+    node->expression->accept(this);
+    std::cout << "mov $0, %edx" << std::endl;
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "je " << "L" << secondLabel << std::endl;
+    std::cout << "jmp " << "L" << firstLabel << std::endl;
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitQMNode(QMNode* node){
-    // WRITEME: Replace with code if necessary
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    node->expression_1->accept(this);
+    std::cout << "mov $0, %edx" << std::endl;
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "je " << "L" << firstLabel << std::endl;
+
+    node->expression_2->accept(this);
+    std::cout << "jmp " << "L" << secondLabel << std::endl;
+
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    node->expression_3->accept(this);
+
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitPlusNode(PlusNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+    std::cout << "add %edx, %eax" << std::endl;
 }
 
 void CodeGenerator::visitMinusNode(MinusNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+    std::cout << "sub %edx, %eax" << std::endl;
 }
 
 void CodeGenerator::visitTimesNode(TimesNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+    std::cout << "imul %edx, %eax" << std::endl;
 }
 
-void CodeGenerator::visitDivideNode(DivideNode* node) {
-    // WRITEME: Replace with code if necessary
+void CodeGenerator::visitDivideNode(DivideNode* node) { // cause problem
+    /*
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+    std::cout << "idiv %edx, %eax" << std::endl;
+    */
+    node->expression_2->accept(this);
+    std::cout << "mov %eax, %ecx" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "cdq" << std::endl;
+    std::cout << "idiv %ecx" << std::endl;
 }
 
 void CodeGenerator::visitGreaterNode(GreaterNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "jg " << "L" << firstLabel << std::endl;
+    std::cout << "mov $0, %eax" << std::endl;
+    std::cout << "jmp " << "L" << secondLabel << std::endl;
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    std::cout << "mov $1, %eax" << std::endl;
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitGreaterEqualNode(GreaterEqualNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "jge " << "L" << firstLabel << std::endl;
+    std::cout << "mov $0, %eax" << std::endl;
+    std::cout << "jmp " << "L" << secondLabel << std::endl;
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    std::cout << "mov $1, %eax" << std::endl;
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitEqualNode(EqualNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+
+    int firstLabel = currentLabel;
+    nextLabel();
+    int secondLabel = currentLabel;
+    nextLabel();
+
+    std::cout << "cmp %edx, %eax" << std::endl;
+    std::cout << "je " << "L" << firstLabel << std::endl;
+    std::cout << "mov $0, %eax" << std::endl;
+    std::cout << "jmp " << "L" << secondLabel << std::endl;
+    std::cout << "L" << firstLabel << ":" << std::endl;
+    std::cout << "mov $1, %eax" << std::endl;
+    std::cout << "L" << secondLabel << ":" << std::endl;
 }
 
 void CodeGenerator::visitAndNode(AndNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+    std::cout << "and %edx, %eax" << std::endl;
 }
 
 void CodeGenerator::visitOrNode(OrNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression_2->accept(this);
+    std::cout << "push %eax" << std::endl;
+    node->expression_1->accept(this);
+    std::cout << "pop %edx" << std::endl;
+    std::cout << "or %edx, %eax" << std::endl;
 }
 
 void CodeGenerator::visitNotNode(NotNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression->accept(this);
+    std::cout << "xor $1, %eax" << std::endl;
 }
 
 void CodeGenerator::visitNegationNode(NegationNode* node) {
-    // WRITEME: Replace with code if necessary
+    node->expression->accept(this);
+    std::cout << "imul $-1, %eax" << std::endl;
 }
 
 void CodeGenerator::visitMethodCallNode(MethodCallNode* node) {
-    // WRITEME: Replace with code if necessary
+    int offsetSize = 4;
+    if (node->expression_list) {
+        for(std::list<ExpressionNode*>::reverse_iterator iter = node->expression_list->rbegin();iter != node->expression_list->rend(); iter++) {
+            (*iter)->accept(this);
+            std::cout << "push %eax" << std::endl;
+            offsetSize += 4;
+        }
+    }
+    
+    if(NULL == node->identifier_2)
+    {
+        std::cout << "push 8(%ebp)" << std::endl;
+        std::string searchClassName = currentClassName;
+        while("" != searchClassName)
+        {
+            MethodTable* searchClassMethods = (*classTable)[searchClassName].methods;
+            if((*searchClassMethods).end() == ((*searchClassMethods).find(node->identifier_1->name)))
+            {
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+            else
+            {
+                std::cout << "call " << searchClassName << "_" << node->identifier_1->name << std::endl;
+                break;
+            }
+        }
+    }
+    else
+    {
+        VariableInfo var1;
+        VariableTable* currentVariableTable = (*(*classTable)[currentClassName].methods)[currentMethodName].variables;
+        if((*currentVariableTable).end() == (*currentVariableTable).find(node->identifier_1->name))
+        {
+            int var1Offset = 0;
+            std::string searchClassName = currentClassName;
+            while("" != searchClassName)
+            {
+                VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+                if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_1->name)))
+                {
+                    var1Offset += (*classTable)[searchClassName].membersSize;
+                    searchClassName = (*classTable)[searchClassName].superClassName;
+                }
+                else
+                {
+                    var1 = (*searchClassMembers)[node->identifier_1->name];
+                    var1Offset += var1.offset;
+                    std::cout << "push " << var1Offset << "(%ebp)" << std::endl;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            var1 = (*currentVariableTable)[node->identifier_1->name];
+            std::cout << "push " << var1.offset << "(%ebp)" << std::endl;
+        }
+        std::cout << "call " << var1.type.objectClassName << "_" << node->identifier_2->name << std::endl;
+    }
+    std::cout << "add $" << offsetSize << ", %esp" << std::endl;
 }
 
 void CodeGenerator::visitMemberAccessNode(MemberAccessNode* node) {
-    // WRITEME: Replace with code if necessary
+    VariableInfo var1;
+    VariableTable* currentVariableTable = (*(*classTable)[currentClassName].methods)[currentMethodName].variables;
+    if((*currentVariableTable).end() == (*currentVariableTable).find(node->identifier_1->name))
+    {
+        int firstVarOffset = 0;
+        std::string searchClassName = currentClassName;
+        while("" != searchClassName)
+        {
+            VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+            if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_1->name)))
+            {
+                firstVarOffset += (*classTable)[searchClassName].membersSize;
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+            else
+            {
+                var1 = (*searchClassMembers)[node->identifier_1->name];
+                firstVarOffset += var1.offset;
+                std::cout << "mov 8(%ebp), %ebx" << std::endl;
+                std::cout << "mov " << firstVarOffset << "(%ebx), %ebx" << std::endl;
+                break;
+            }
+        }
+    }
+    else
+    {
+        var1 = (*currentVariableTable)[node->identifier_1->name];
+        std::cout << "mov " << var1.offset << "(%ebp), %ebx" << std::endl;
+    }
+
+    int secondVarOffset = 0;
+    VariableInfo var2;
+    std::string searchClassName = var1.type.objectClassName;
+    while("" != searchClassName)
+    {
+        VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+        if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_2->name)))
+        {
+            secondVarOffset += (*classTable)[searchClassName].membersSize;
+            searchClassName = (*classTable)[searchClassName].superClassName;
+        }
+        else
+        {
+            var2 = (*searchClassMembers)[node->identifier_2->name];
+            secondVarOffset += var2.offset;
+            std::cout << "mov " << secondVarOffset << "(%ebx), %eax" << std::endl;
+            break;
+        }
+    }
 }
 
 void CodeGenerator::visitVariableNode(VariableNode* node) {
-    // WRITEME: Replace with code if necessary
+    VariableInfo var1;
+    VariableTable* currentVariableTable = (*(*classTable)[currentClassName].methods)[currentMethodName].variables;
+    if((*currentVariableTable).end() == (*currentVariableTable).find(node->identifier->name))
+    {
+        int firstVarOffset = 0;
+        std::string searchClassName = currentClassName;
+        while("" != searchClassName)
+        {
+            VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+            if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier->name)))
+            {
+                firstVarOffset += (*classTable)[searchClassName].membersSize;
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+            else
+            {
+                var1 = (*searchClassMembers)[node->identifier->name];
+                firstVarOffset += var1.offset;
+                std::cout << "mov 8(%ebp), %ebx" << std::endl;
+                std::cout << "mov " << firstVarOffset << "(%ebx), %eax" << std::endl;
+                break;
+            }
+        }
+    }
+    else
+    {
+        var1 = (*currentVariableTable)[node->identifier->name];
+        std::cout << "mov " << var1.offset << "(%ebp), %eax" << std::endl;
+    }
 }
 
 void CodeGenerator::visitIntegerLiteralNode(IntegerLiteralNode* node) {
-    // WRITEME: Replace with code if necessary
+    std::cout << "mov $" << node->integer->value << ", %eax" <<std::endl;
 }
 
 void CodeGenerator::visitBooleanLiteralNode(BooleanLiteralNode* node) {
-    // WRITEME: Replace with code if necessary
+    std::cout << "mov $" << node->integer->value << ", %eax" <<std::endl;
 }
 
 void CodeGenerator::visitNewNode(NewNode* node) {
-    // WRITEME: Replace with code if necessary
+    int allocateSize = 0;
+    std::string searchClassName = node->identifier->name;
+    while("" != searchClassName)
+    {
+        allocateSize += (*classTable)[searchClassName].membersSize;
+        searchClassName = (*classTable)[searchClassName].superClassName;
+    }
+
+    int offsetSize = 0;
+    if(0 != node->expression_list->size())
+    {
+        for(std::list<ExpressionNode*>::reverse_iterator iter = node->expression_list->rbegin();iter != node->expression_list->rend(); iter++) {
+            (*iter)->accept(this);
+            std::cout << "push %eax" << std::endl;
+            offsetSize += 4;
+        }
+    }
+
+    std::cout << "push $" << allocateSize << std::endl;
+    std::cout << "call malloc" << std::endl;
+    std::cout << "add $4, %esp" << std::endl;
+
+    if(0 != node->expression_list->size())
+    {
+        std::cout << "push %eax" << std::endl;
+        std::cout << "call " << node->identifier->name << "_" << node->identifier->name << std::endl;
+        std::cout << "pop %eax" << std::endl;
+        std::cout << "add $" << offsetSize << ", %esp" << std::endl;
+    }
 }
 
 void CodeGenerator::visitIntegerTypeNode(IntegerTypeNode* node) {

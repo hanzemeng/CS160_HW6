@@ -778,12 +778,22 @@ void TypeCheck::visitNewNode(NewNode* node) {
   }
 
   MethodTable* classMethods = (*classTable)[node->identifier->name].methods;
+
+  MethodInfo constructor;
   if((*classMethods).end() == (*classMethods).find(node->identifier->name))
   {
-    typeError(undefined_method);
+    // typeError(undefined_method);
+    constructor.returnType.baseType = bt_none;
+    constructor.variables = new VariableTable();
+    constructor.parameters = new std::list<CompoundType>();
+    constructor.localsSize = 0;
+  }
+  else
+  {
+    constructor = (*classMethods)[node->identifier->name];
   }
 
-  MethodInfo constructor = (*classMethods)[node->identifier->name];
+  
 
   if((*constructor.parameters).size() !=  node->expression_list->size())
   {
