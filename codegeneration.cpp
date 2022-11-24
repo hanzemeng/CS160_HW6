@@ -449,7 +449,23 @@ void CodeGenerator::visitMethodCallNode(MethodCallNode* node) {
             var1 = (*currentVariableTable)[node->identifier_1->name];
             std::cout << "push " << var1.offset << "(%ebp)" << std::endl;
         }
-        std::cout << "call " << var1.type.objectClassName << "_" << node->identifier_2->name << std::endl;
+
+        std::string searchClassName = var1.type.objectClassName;
+        while("" != searchClassName)
+        {
+            MethodTable* searchClassMethods = (*classTable)[searchClassName].methods;
+            if((*searchClassMethods).end() == ((*searchClassMethods).find(node->identifier_2->name)))
+            {
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+            else
+            {
+                
+                break;
+            }
+        }
+        std::cout << "call " << searchClassName << "_" << node->identifier_2->name << std::endl;
+        
     }
     std::cout << "add $" << offsetSize << ", %esp" << std::endl;
 }
