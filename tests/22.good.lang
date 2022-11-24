@@ -207,7 +207,6 @@ Main {
             local1.f3(new class0(), local1.member2, new class0());
             print local2;
         }
-        
         if True {
             local2 = local2;
         } else {
@@ -290,7 +289,6 @@ Main {
         print 197;
         local1.f3(new class0(), False, new class0());
         local4 = (local4);
-
     }
 
 

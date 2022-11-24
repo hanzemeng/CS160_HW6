@@ -794,31 +794,41 @@ void TypeCheck::visitNewNode(NewNode* node) {
   }
 
   
-
-  if((*constructor.parameters).size() !=  node->expression_list->size())
+  if(NULL != node->expression_list)
   {
-    typeError(argument_number_mismatch);
-  }
-  if (node->expression_list) {
-    for(std::list<ExpressionNode*>::iterator iter = node->expression_list->begin(); iter != node->expression_list->end(); iter++) {
-      (*iter)->accept(this);
+    if((*constructor.parameters).size() !=  node->expression_list->size())
+    {
+      typeError(argument_number_mismatch);
+    }
+    if (node->expression_list) {
+      for(std::list<ExpressionNode*>::iterator iter = node->expression_list->begin(); iter != node->expression_list->end(); iter++) {
+        (*iter)->accept(this);
+      }
+    }
+    std::list<CompoundType>::iterator iter1 = (*constructor.parameters).begin();
+    std::list<ExpressionNode*>::iterator iter2 = node->expression_list->begin();
+    while(iter1 != (*constructor.parameters).end())
+    {
+      if((*iter1).baseType != (*iter2)->basetype)
+      {
+        typeError(argument_type_mismatch);
+      }
+      if(bt_object == (*iter1).baseType && (*iter1).objectClassName != (*iter2)->objectClassName)
+      {
+        typeError(argument_type_mismatch);
+      }
+      iter1++;
+      iter2++;
     }
   }
-  std::list<CompoundType>::iterator iter1 = (*constructor.parameters).begin();
-  std::list<ExpressionNode*>::iterator iter2 = node->expression_list->begin();
-  while(iter1 != (*constructor.parameters).end())
+  else
   {
-    if((*iter1).baseType != (*iter2)->basetype)
+    if(0 != (*constructor.parameters).size())
     {
-      typeError(argument_type_mismatch);
+      typeError(argument_number_mismatch);
     }
-    if(bt_object == (*iter1).baseType && (*iter1).objectClassName != (*iter2)->objectClassName)
-    {
-      typeError(argument_type_mismatch);
-    }
-    iter1++;
-    iter2++;
   }
+  
 
   node->basetype = bt_object;
   node->objectClassName = node->identifier->name;

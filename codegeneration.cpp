@@ -17,30 +17,12 @@ void CodeGenerator::visitProgramNode(ProgramNode* node) {
 }
 
 void CodeGenerator::visitClassNode(ClassNode* node) {
-    /*
-    std::cout << "push %ebp" << std::endl;
-    std::cout << "mov %esp, %ebp" << std::endl;
-
-    int memberAllocateSize = 0;
-    currentClassName = node->identifier_1->name;
-    while("" != currentClassName)
-    {
-        memberAllocateSize += (*classTable)[currentClassName].membersSize;
-        currentClassName = (*classTable)[currentClassName].superClassName;
-    }
-    
-    std::cout << "sub $" << memberAllocateSize << ", %esp" << std::endl;
-    */
     currentClassName = node->identifier_1->name;
     if (node->method_list) {
         for(std::list<MethodNode*>::iterator iter = node->method_list->begin(); iter != node->method_list->end(); iter++) {
         (*iter)->accept(this);
         }
     }
-    /*
-    std::cout << "mov %ebp, %esp" << std::endl;
-    std::cout << "pop %ebp" << std::endl;
-    */
 }
 
 void CodeGenerator::visitMethodNode(MethodNode* node) {
@@ -299,8 +281,10 @@ void CodeGenerator::visitDivideNode(DivideNode* node) { // cause problem
     std::cout << "idiv %edx, %eax" << std::endl;
     */
     node->expression_2->accept(this);
-    std::cout << "mov %eax, %ecx" << std::endl;
+    std::cout << "push %eax" << std::endl;
+    //std::cout << "mov %eax, %ecx" << std::endl;
     node->expression_1->accept(this);
+    std::cout << "pop %ecx" << std::endl;
     std::cout << "cdq" << std::endl;
     std::cout << "idiv %ecx" << std::endl;
 }
@@ -572,7 +556,7 @@ void CodeGenerator::visitNewNode(NewNode* node) {
     }
 
     int offsetSize = 0;
-    if(0 != node->expression_list->size())
+    if(NULL != node->expression_list)
     {
         for(std::list<ExpressionNode*>::reverse_iterator iter = node->expression_list->rbegin();iter != node->expression_list->rend(); iter++) {
             (*iter)->accept(this);
@@ -585,7 +569,7 @@ void CodeGenerator::visitNewNode(NewNode* node) {
     std::cout << "call malloc" << std::endl;
     std::cout << "add $4, %esp" << std::endl;
 
-    if(0 != node->expression_list->size())
+    if(NULL != node->expression_list)
     {
         std::cout << "push %eax" << std::endl;
         std::cout << "call " << node->identifier->name << "_" << node->identifier->name << std::endl;

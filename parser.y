@@ -192,7 +192,7 @@ Expression : Expression T_PLUS Expression {$$ = new PlusNode($1, $3);}
            | INTEGER {$$ = new IntegerLiteralNode($1);}
            | T_TRUE {$$ = new BooleanLiteralNode(new IntegerNode(1));}
            | T_FALSE {$$ = new BooleanLiteralNode(new IntegerNode(0));}
-           | T_NEW ID {$$ = new NewNode($2, new std::list<ExpressionNode*>());}
+           | T_NEW ID {$$ = new NewNode($2, NULL);}
            | T_NEW ID T_LEFT_PARENTHESIS Arguments T_RIGHT_PARENTHESIS {$$ = new NewNode($2, $4);}
            ;
 Call : MethodCall T_SEMICOLON{$$ = new CallNode($1);}
