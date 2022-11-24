@@ -67,21 +67,33 @@ void CodeGenerator::visitAssignmentNode(AssignmentNode* node) {
     node->expression->accept(this);
     if(NULL == node->identifier_2)
     {
-        if((*(*(*classTable)[currentClassName].methods)[currentMethodName].variables).end() == 
-        (*(*(*classTable)[currentClassName].methods)[currentMethodName].variables).find(node->identifier_1->name))
+        VariableTable* currentVariableTable = (*(*classTable)[currentClassName].methods)[currentMethodName].variables;
+        if((*currentVariableTable).end() == (*currentVariableTable).find(node->identifier_1->name))
         {
             int varOffset = 0;
             std::string searchClassName = currentClassName;
+            std::stack<VariableTable*> variableTables;
+            std::stack<int> variableTablesSizes;
             while("" != searchClassName)
             {
-                if((*(*classTable)[searchClassName].members).end() == (*(*classTable)[searchClassName].members).find(node->identifier_1->name))
+                variableTables.push((*classTable)[searchClassName].members);
+                variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+
+            while(!variableTables.empty())
+            {
+                VariableTable* searchClassMembers = variableTables.top();
+                int searchClassMembersSize = variableTablesSizes.top();
+                variableTables.pop();
+                variableTablesSizes.pop();
+                if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_1->name)))
                 {
-                    varOffset += (*classTable)[searchClassName].membersSize;
-                    searchClassName = (*classTable)[searchClassName].superClassName;
+                    varOffset += searchClassMembersSize;
                 }
                 else
                 {
-                    assignedVar = (*(*classTable)[searchClassName].members)[node->identifier_1->name];
+                    assignedVar = (*searchClassMembers)[node->identifier_1->name];
                     varOffset += assignedVar.offset;
                     std::cout << "mov 8(%ebp), %ebx" << std::endl;
                     std::cout << "mov %eax, " << varOffset << "(%ebx)" << std::endl;
@@ -91,7 +103,7 @@ void CodeGenerator::visitAssignmentNode(AssignmentNode* node) {
         }
         else
         {
-            assignedVar = (*(*(*classTable)[currentClassName].methods)[currentMethodName].variables)[node->identifier_1->name];
+            assignedVar = (*currentVariableTable)[node->identifier_1->name];
             std::cout << "mov %eax, " << assignedVar.offset << "(%ebp)" << std::endl;
         }
     }
@@ -103,17 +115,29 @@ void CodeGenerator::visitAssignmentNode(AssignmentNode* node) {
         {
             int firstVarOffset = 0;
             std::string searchClassName = currentClassName;
+            std::stack<VariableTable*> variableTables;
+            std::stack<int> variableTablesSizes;
             while("" != searchClassName)
             {
-                if((*(*classTable)[searchClassName].members).end() == (*(*classTable)[searchClassName].members).find(node->identifier_1->name))
+                variableTables.push((*classTable)[searchClassName].members);
+                variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+
+            while(!variableTables.empty())
+            {
+                VariableTable* searchClassMembers = variableTables.top();
+                int searchClassMembersSize = variableTablesSizes.top();
+                variableTables.pop();
+                variableTablesSizes.pop();
+                if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_1->name)))
                 {
-                    firstVarOffset += (*classTable)[searchClassName].membersSize;
-                    searchClassName = (*classTable)[searchClassName].superClassName;
+                    firstVarOffset += searchClassMembersSize;
                 }
                 else
                 {
-                    firstVar = (*(*classTable)[searchClassName].members)[node->identifier_1->name];
-                    firstVarOffset += firstVar.offset;
+                    assignedVar = (*searchClassMembers)[node->identifier_1->name];
+                    firstVarOffset += assignedVar.offset;
                     std::cout << "mov 8(%ebp), %ebx" << std::endl;
                     std::cout << "mov " << firstVarOffset << "(%ebx), %ebx" << std::endl;
                     break;
@@ -128,16 +152,28 @@ void CodeGenerator::visitAssignmentNode(AssignmentNode* node) {
 
         int secondVarOffset = 0;
         std::string searchClassName = firstVar.type.objectClassName;
+        std::stack<VariableTable*> variableTables;
+        std::stack<int> variableTablesSizes;
         while("" != searchClassName)
         {
-            if((*(*classTable)[searchClassName].members).end() == (*(*classTable)[searchClassName].members).find(node->identifier_2->name))
+            variableTables.push((*classTable)[searchClassName].members);
+            variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+            searchClassName = (*classTable)[searchClassName].superClassName;
+        }
+
+        while(!variableTables.empty())
+        {
+            VariableTable* searchClassMembers = variableTables.top();
+            int searchClassMembersSize = variableTablesSizes.top();
+            variableTables.pop();
+            variableTablesSizes.pop();
+            if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_2->name)))
             {
-                secondVarOffset += (*classTable)[searchClassName].membersSize;
-                searchClassName = (*classTable)[searchClassName].superClassName;
+                secondVarOffset += searchClassMembersSize;
             }
             else
             {
-                assignedVar = (*(*classTable)[searchClassName].members)[node->identifier_2->name];
+                assignedVar = (*searchClassMembers)[node->identifier_2->name];
                 secondVarOffset += assignedVar.offset;
                 break;
             }
@@ -411,13 +447,24 @@ void CodeGenerator::visitMethodCallNode(MethodCallNode* node) {
         {
             int var1Offset = 0;
             std::string searchClassName = currentClassName;
+            std::stack<VariableTable*> variableTables;
+            std::stack<int> variableTablesSizes;
             while("" != searchClassName)
             {
-                VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+                variableTables.push((*classTable)[searchClassName].members);
+                variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+                searchClassName = (*classTable)[searchClassName].superClassName;
+            }
+
+            while(!variableTables.empty())
+            {
+                VariableTable* searchClassMembers = variableTables.top();
+                int searchClassMembersSize = variableTablesSizes.top();
+                variableTables.pop();
+                variableTablesSizes.pop();
                 if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_1->name)))
                 {
-                    var1Offset += (*classTable)[searchClassName].membersSize;
-                    searchClassName = (*classTable)[searchClassName].superClassName;
+                    var1Offset += searchClassMembersSize;
                 }
                 else
                 {
@@ -461,13 +508,24 @@ void CodeGenerator::visitMemberAccessNode(MemberAccessNode* node) {
     {
         int firstVarOffset = 0;
         std::string searchClassName = currentClassName;
+        std::stack<VariableTable*> variableTables;
+        std::stack<int> variableTablesSizes;
         while("" != searchClassName)
         {
-            VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+            variableTables.push((*classTable)[searchClassName].members);
+            variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+            searchClassName = (*classTable)[searchClassName].superClassName;
+        }
+
+        while(!variableTables.empty())
+        {
+            VariableTable* searchClassMembers = variableTables.top();
+            int searchClassMembersSize = variableTablesSizes.top();
+            variableTables.pop();
+            variableTablesSizes.pop();
             if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_1->name)))
             {
-                firstVarOffset += (*classTable)[searchClassName].membersSize;
-                searchClassName = (*classTable)[searchClassName].superClassName;
+                firstVarOffset += searchClassMembersSize;
             }
             else
             {
@@ -485,16 +543,27 @@ void CodeGenerator::visitMemberAccessNode(MemberAccessNode* node) {
         std::cout << "mov " << var1.offset << "(%ebp), %ebx" << std::endl;
     }
 
-    int secondVarOffset = 0;
     VariableInfo var2;
+    int secondVarOffset = 0;
     std::string searchClassName = var1.type.objectClassName;
+    std::stack<VariableTable*> variableTables;
+    std::stack<int> variableTablesSizes;
     while("" != searchClassName)
     {
-        VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+        variableTables.push((*classTable)[searchClassName].members);
+        variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+        searchClassName = (*classTable)[searchClassName].superClassName;
+    }
+
+    while(!variableTables.empty())
+    {
+        VariableTable* searchClassMembers = variableTables.top();
+        int searchClassMembersSize = variableTablesSizes.top();
+        variableTables.pop();
+        variableTablesSizes.pop();
         if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier_2->name)))
         {
-            secondVarOffset += (*classTable)[searchClassName].membersSize;
-            searchClassName = (*classTable)[searchClassName].superClassName;
+            secondVarOffset += searchClassMembersSize;
         }
         else
         {
@@ -513,13 +582,24 @@ void CodeGenerator::visitVariableNode(VariableNode* node) {
     {
         int firstVarOffset = 0;
         std::string searchClassName = currentClassName;
+        std::stack<VariableTable*> variableTables;
+        std::stack<int> variableTablesSizes;
         while("" != searchClassName)
         {
-            VariableTable* searchClassMembers = (*classTable)[searchClassName].members;
+            variableTables.push((*classTable)[searchClassName].members);
+            variableTablesSizes.push((*classTable)[searchClassName].membersSize);
+            searchClassName = (*classTable)[searchClassName].superClassName;
+        }
+
+        while(!variableTables.empty())
+        {
+            VariableTable* searchClassMembers = variableTables.top();
+            int searchClassMembersSize = variableTablesSizes.top();
+            variableTables.pop();
+            variableTablesSizes.pop();
             if((*searchClassMembers).end() == ((*searchClassMembers).find(node->identifier->name)))
             {
-                firstVarOffset += (*classTable)[searchClassName].membersSize;
-                searchClassName = (*classTable)[searchClassName].superClassName;
+                firstVarOffset += searchClassMembersSize;
             }
             else
             {
